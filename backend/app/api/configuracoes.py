@@ -1,6 +1,7 @@
 """Configurações pelo painel: perfil do usuário do RH e SMTP (com teste de envio)."""
 
 import smtplib
+import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, EmailStr
@@ -13,7 +14,7 @@ from app.core.security import hash_senha, verificar_senha
 from app.models.usuario_rh import UsuarioRH
 from app.services.auditoria import registrar
 from app.services.config_dinamica import CHAVES_SMTP, gravar_config, smtp_config
-from app.services.email import enviar_email
+from app.services.email import enviar_email, html_moderno
 
 router = APIRouter(tags=["configuracoes"])
 
@@ -60,6 +61,126 @@ def trocar_senha(payload: SenhaIn, db: Session = Depends(get_db),
         raise HTTPException(status_code=422, detail="senha_curta_minimo_8")
     rh.senha_hash = hash_senha(payload.senha_nova)
     registrar(db, "senha_alterada", ator="rh", ator_detalhe=rh.email)
+    db.commit()
+
+
+# ---------- Equipe (usuários do RH) ----------
+
+
+class UsuarioNovoIn(BaseModel):
+    nome: str
+    email: EmailStr
+    senha: str
+
+
+class UsuarioEditIn(BaseModel):
+    nome: str | None = None
+    email: EmailStr | None = None
+    ativo: bool | None = None
+
+
+class UsuarioSenhaIn(BaseModel):
+    senha_nova: str
+
+
+def _usuario_dict(u: UsuarioRH, eu: UsuarioRH) -> dict:
+    return {"id": u.id, "nome": u.nome, "email": u.email, "ativo": u.ativo,
+            "criado_em": u.criado_em, "sou_eu": u.id == eu.id}
+
+
+@router.get("/rh/usuarios")
+def listar_usuarios(db: Session = Depends(get_db),
+                    rh: UsuarioRH = Depends(requer_rh)) -> list[dict]:
+    usuarios = db.scalars(select(UsuarioRH).order_by(UsuarioRH.criado_em)).all()
+    return [_usuario_dict(u, rh) for u in usuarios]
+
+
+@router.post("/rh/usuarios", status_code=201)
+def criar_usuario(payload: UsuarioNovoIn, db: Session = Depends(get_db),
+                  rh: UsuarioRH = Depends(requer_rh)) -> dict:
+    nome = payload.nome.strip()
+    if not nome:
+        raise HTTPException(status_code=422, detail="nome_obrigatorio")
+    if len(payload.senha) < 8:
+        raise HTTPException(status_code=422, detail="senha_curta_minimo_8")
+    email = payload.email.lower()
+    if db.scalar(select(UsuarioRH).where(UsuarioRH.email == email)) is not None:
+        raise HTTPException(status_code=409, detail="email_ja_utilizado")
+    novo = UsuarioRH(nome=nome, email=email, senha_hash=hash_senha(payload.senha))
+    db.add(novo)
+    registrar(db, "usuario_rh_criado", ator="rh", ator_detalhe=rh.email,
+              detalhe={"novo_usuario": email})
+    db.commit()
+
+    email_enviado = True
+    try:
+        enviar_email(
+            email,
+            "🌱 Green House — seu acesso ao Portal de Admissão",
+            f"Olá, {nome.split()[0].title()}!\n\n"
+            f"{rh.nome} criou um acesso para você no painel do RH do Portal de Admissão.\n"
+            f"Acesse {get_settings().base_url}/rh com o e-mail {email} e a senha "
+            "que ela(e) vai lhe informar.\n\n"
+            "IMPORTANTE: troque a senha no primeiro acesso, em Configurações → Senha.\n",
+            html_moderno(
+                "Seu acesso ao painel do RH",
+                [
+                    f"Olá, <strong>{nome.split()[0].title()}</strong>!",
+                    f"<strong>{rh.nome}</strong> criou um acesso para você no painel do RH "
+                    "do Portal de Admissão da Green House.",
+                    f"Entre em <a href='{get_settings().base_url}/rh'>"
+                    f"{get_settings().base_url}/rh</a> com o e-mail <strong>{email}</strong> "
+                    "e a senha que quem criou o acesso vai lhe informar.",
+                    "<strong>Troque a senha no primeiro acesso</strong>, em "
+                    "Configurações → Senha.",
+                ],
+            ),
+            levantar_erro=True,
+        )
+    except Exception:
+        email_enviado = False
+    return {**_usuario_dict(novo, rh), "email_enviado": email_enviado}
+
+
+@router.put("/rh/usuarios/{usuario_id}")
+def editar_usuario(usuario_id: uuid.UUID, payload: UsuarioEditIn,
+                   db: Session = Depends(get_db),
+                   rh: UsuarioRH = Depends(requer_rh)) -> dict:
+    usuario = db.get(UsuarioRH, usuario_id)
+    if usuario is None:
+        raise HTTPException(status_code=404, detail="usuario_nao_encontrado")
+    if payload.ativo is False:
+        if usuario.id == rh.id:
+            raise HTTPException(status_code=422, detail="nao_pode_desativar_a_si_mesmo")
+        ativos = db.scalars(select(UsuarioRH).where(UsuarioRH.ativo == True)).all()  # noqa: E712
+        if len([u for u in ativos if u.id != usuario.id]) == 0:
+            raise HTTPException(status_code=422, detail="ultimo_usuario_ativo")
+    if payload.email and payload.email.lower() != usuario.email:
+        if db.scalar(select(UsuarioRH).where(UsuarioRH.email == payload.email.lower())):
+            raise HTTPException(status_code=409, detail="email_ja_utilizado")
+        usuario.email = payload.email.lower()
+    if payload.nome is not None and payload.nome.strip():
+        usuario.nome = payload.nome.strip()
+    if payload.ativo is not None:
+        usuario.ativo = payload.ativo
+    registrar(db, "usuario_rh_editado", ator="rh", ator_detalhe=rh.email,
+              detalhe={"usuario": usuario.email, "ativo": usuario.ativo})
+    db.commit()
+    return _usuario_dict(usuario, rh)
+
+
+@router.put("/rh/usuarios/{usuario_id}/senha", status_code=204)
+def redefinir_senha_usuario(usuario_id: uuid.UUID, payload: UsuarioSenhaIn,
+                            db: Session = Depends(get_db),
+                            rh: UsuarioRH = Depends(requer_rh)) -> None:
+    usuario = db.get(UsuarioRH, usuario_id)
+    if usuario is None:
+        raise HTTPException(status_code=404, detail="usuario_nao_encontrado")
+    if len(payload.senha_nova) < 8:
+        raise HTTPException(status_code=422, detail="senha_curta_minimo_8")
+    usuario.senha_hash = hash_senha(payload.senha_nova)
+    registrar(db, "usuario_rh_senha_redefinida", ator="rh", ator_detalhe=rh.email,
+              detalhe={"usuario": usuario.email})
     db.commit()
 
 

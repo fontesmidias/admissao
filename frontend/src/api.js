@@ -98,6 +98,14 @@ export const rh = {
     req('/rh/config/smtp', { method: 'PUT', headers: authRH(), body: JSON.stringify(dados) }),
   testarSmtp: () => req('/rh/config/smtp/testar', { method: 'POST', headers: authRH() }),
   auditoria: () => req('/rh/auditoria', { headers: authRH() }),
+  usuarios: () => req('/rh/usuarios', { headers: authRH() }),
+  criarUsuario: (dados) =>
+    req('/rh/usuarios', { method: 'POST', headers: authRH(), body: JSON.stringify(dados) }),
+  editarUsuario: (id, dados) =>
+    req(`/rh/usuarios/${id}`, { method: 'PUT', headers: authRH(), body: JSON.stringify(dados) }),
+  redefinirSenhaUsuario: (id, senha_nova) =>
+    req(`/rh/usuarios/${id}/senha`, { method: 'PUT', headers: authRH(),
+                                      body: JSON.stringify({ senha_nova }) }),
   verM365: () => req('/rh/config/m365', { headers: authRH() }),
   salvarM365: (dados) =>
     req('/rh/config/m365', { method: 'PUT', headers: authRH(), body: JSON.stringify(dados) }),

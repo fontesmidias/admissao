@@ -16,6 +16,7 @@ export default function Config({ aoVoltar }) {
       </header>
       <Perfil />
       <Senha />
+      <Equipe />
       <M365 />
       <Smtp />
       <Auditoria />
@@ -82,6 +83,160 @@ function Senha() {
             ? 'A senha atual está incorreta.' : 'Não foi possível trocar a senha.' })
         }
       }}>Trocar senha</button>
+      <Msg msg={msg} />
+    </div>
+  )
+}
+
+const ERROS_EQUIPE = {
+  email_ja_utilizado: 'Este e-mail já é usado por outro usuário.',
+  senha_curta_minimo_8: 'A senha precisa ter no mínimo 8 caracteres.',
+  nome_obrigatorio: 'Informe o nome.',
+  nao_pode_desativar_a_si_mesmo: 'Você não pode desativar o seu próprio acesso.',
+  ultimo_usuario_ativo: 'Este é o último usuário ativo — desativá-lo trancaria todo mundo para fora.',
+}
+
+function erroEquipe(e) {
+  if (ERROS_EQUIPE[e.detail]) return ERROS_EQUIPE[e.detail]
+  if (Array.isArray(e.detail)) {
+    return 'Confira: ' + e.detail.map((d) => `${d.loc?.slice(-1)[0]}: ${d.msg}`).join('; ')
+  }
+  return `Não foi possível concluir (${e.detail || e.message}).`
+}
+
+function Equipe() {
+  const [usuarios, setUsuarios] = useState(null)
+  const [novo, setNovo] = useState(null) // {nome, email, senha}
+  const [senhaDe, setSenhaDe] = useState(null) // id do usuário em redefinição
+  const [novaSenha, setNovaSenha] = useState('')
+  const [editando, setEditando] = useState(null) // {id, nome, email}
+  const [salvando, setSalvando] = useState(false)
+  const [msg, setMsg] = useState(null)
+  const recarregar = () => api.usuarios().then(setUsuarios)
+  useEffect(() => { recarregar() }, [])
+  if (!usuarios) return null
+
+  return (
+    <div className="rh-card">
+      <h3>Equipe do RH</h3>
+      <p className="explica">Quem pode entrar no painel. Em vez de excluir, desative o acesso —
+        o histórico de auditoria do usuário é preservado.</p>
+      <table className="rh-tabela">
+        <thead><tr><th>Nome</th><th>E-mail (login)</th><th>Situação</th><th></th></tr></thead>
+        <tbody>
+          {usuarios.map((u) => (
+            <tr key={u.id} style={u.ativo ? {} : { opacity: .55 }}>
+              <td>
+                {editando?.id === u.id ? (
+                  <input value={editando.nome}
+                         onChange={(e) => setEditando({ ...editando, nome: e.target.value })} />
+                ) : <><strong>{u.nome}</strong>{u.sou_eu && <em> (você)</em>}</>}
+              </td>
+              <td>
+                {editando?.id === u.id ? (
+                  <input type="email" value={editando.email}
+                         onChange={(e) => setEditando({ ...editando, email: e.target.value })} />
+                ) : u.email}
+              </td>
+              <td>{u.ativo ? 'Ativo' : 'Desativado'}</td>
+              <td>
+                {editando?.id === u.id ? (
+                  <>
+                    <button className="btn-principal btn-mini" disabled={salvando} onClick={async () => {
+                      setMsg(null); setSalvando(true)
+                      try {
+                        await api.editarUsuario(u.id, { nome: editando.nome.trim(),
+                                                        email: editando.email.trim() })
+                        setEditando(null)
+                        setMsg({ tipo: 'ok', texto: 'Usuário atualizado.' })
+                        await recarregar()
+                      } catch (e) { setMsg({ tipo: 'erro', texto: erroEquipe(e) }) }
+                      finally { setSalvando(false) }
+                    }}>{salvando ? 'Salvando…' : 'Salvar'}</button>
+                    <button className="btn-link" onClick={() => setEditando(null)}>cancelar</button>
+                  </>
+                ) : (
+                  <>
+                    <button className="btn-secundario btn-mini"
+                            onClick={() => { setEditando({ id: u.id, nome: u.nome, email: u.email }); setSenhaDe(null) }}>
+                      Editar</button>
+                    <button className="btn-secundario btn-mini"
+                            onClick={() => { setSenhaDe(senhaDe === u.id ? null : u.id); setNovaSenha(''); setEditando(null) }}>
+                      Redefinir senha</button>
+                    {!u.sou_eu && (
+                      <button className={u.ativo ? 'btn-rejeitar btn-mini' : 'btn-principal btn-mini'}
+                              onClick={async () => {
+                                setMsg(null)
+                                try {
+                                  await api.editarUsuario(u.id, { ativo: !u.ativo })
+                                  setMsg({ tipo: 'ok', texto: u.ativo
+                                    ? `Acesso de ${u.nome} desativado.`
+                                    : `Acesso de ${u.nome} reativado.` })
+                                  await recarregar()
+                                } catch (e) { setMsg({ tipo: 'erro', texto: erroEquipe(e) }) }
+                              }}>{u.ativo ? 'Desativar' : 'Reativar'}</button>
+                    )}
+                  </>
+                )}
+                {senhaDe === u.id && (
+                  <div className="rejeicao">
+                    <input type="password" placeholder="Nova senha (mín. 8 caracteres)"
+                           value={novaSenha} onChange={(e) => setNovaSenha(e.target.value)} />
+                    <button className="btn-principal btn-mini" disabled={novaSenha.length < 8}
+                            onClick={async () => {
+                              setMsg(null)
+                              try {
+                                await api.redefinirSenhaUsuario(u.id, novaSenha)
+                                setSenhaDe(null); setNovaSenha('')
+                                setMsg({ tipo: 'ok', texto: `Senha de ${u.nome} redefinida — informe a nova senha pessoalmente.` })
+                              } catch (e) { setMsg({ tipo: 'erro', texto: erroEquipe(e) }) }
+                            }}>Confirmar</button>
+                  </div>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {!novo ? (
+        <button className="btn-secundario" style={{ marginTop: '.75rem' }}
+                onClick={() => setNovo({ nome: '', email: '', senha: '' })}>+ Novo usuário</button>
+      ) : (
+        <div style={{ marginTop: '.75rem' }}>
+          <div className="linha3">
+            <input placeholder="Nome completo" value={novo.nome}
+                   onChange={(e) => setNovo({ ...novo, nome: e.target.value })} />
+            <input placeholder="E-mail (será o login)" type="email" value={novo.email}
+                   onChange={(e) => setNovo({ ...novo, email: e.target.value })} />
+            <input placeholder="Senha inicial (mín. 8)" type="password" value={novo.senha}
+                   onChange={(e) => setNovo({ ...novo, senha: e.target.value })} />
+          </div>
+          <div className="navegacao">
+            <button className="btn-secundario" onClick={() => setNovo(null)}>Cancelar</button>
+            <button className="btn-principal" disabled={salvando}
+                    onClick={async () => {
+                      setMsg(null)
+                      if (!novo.nome.trim() || !novo.email.trim() || novo.senha.length < 8) {
+                        setMsg({ tipo: 'erro', texto: 'Preencha nome, e-mail e uma senha com no mínimo 8 caracteres.' })
+                        return
+                      }
+                      setSalvando(true)
+                      try {
+                        const r = await api.criarUsuario({ nome: novo.nome.trim(),
+                                                           email: novo.email.trim(),
+                                                           senha: novo.senha })
+                        setNovo(null)
+                        setMsg({ tipo: 'ok', texto: r.email_enviado
+                          ? `Usuário criado. ${r.nome} recebeu um e-mail com as instruções de acesso — informe a senha inicial pessoalmente.`
+                          : `Usuário criado. O e-mail de boas-vindas não pôde ser enviado — informe o endereço ${r.email} e a senha inicial pessoalmente.` })
+                        await recarregar()
+                      } catch (e) { setMsg({ tipo: 'erro', texto: erroEquipe(e) }) }
+                      finally { setSalvando(false) }
+                    }}>{salvando ? 'Criando…' : 'Criar usuário'}</button>
+          </div>
+        </div>
+      )}
       <Msg msg={msg} />
     </div>
   )
