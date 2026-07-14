@@ -1,0 +1,34 @@
+# Segredos e configuração local
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Node / front
+node_modules/
+dist/
+build/
+
+# Dados locais
+*.sqlite
+minio-data/
+postgres-data/
+
+# SO / editor
+.DS_Store
+Thumbs.db
+.claude/settings.local.json
+
+# Saídas BMAD locais
+_bmad-output/
+
+# Documentos com potenciais dados pessoais/sensíveis (LGPD) — nunca versionar
+docs/*.pdf
+docs/*.docx
+docs/*.xlsx
+*.pdf
