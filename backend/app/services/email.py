@@ -55,7 +55,10 @@ def email_convite(nome: str, link: str) -> tuple[str, str, str]:
         "Seja bem-vindo(a) à Green House! Para concluir sua admissão, acesse o link abaixo "
         "pelo celular ou computador. Não precisa de senha — é só tocar e começar:\n\n"
         f"{link}\n\n"
-        "Você pode preencher aos poucos: o sistema salva tudo e você continua de onde parou.\n\n"
+        "IMPORTANTE: comece AGORA. Sua contratação só é efetivada depois que você preencher "
+        "os dados, assinar os documentos e enviar toda a documentação. Se precisar "
+        "interromper, tudo fica salvo — mas conclua o quanto antes: sem a documentação "
+        "completa, o RH não pode efetivar seu registro.\n\n"
         "Qualquer dúvida, fale com o RH.\n"
     )
     html = f"""
@@ -68,8 +71,9 @@ def email_convite(nome: str, link: str) -> tuple[str, str, str]:
         <a href="{link}" style="background:#8cc63f;color:#fff;text-decoration:none;
            padding:14px 28px;border-radius:8px;font-weight:bold">Começar minha admissão</a>
       </p>
-      <p>Você pode preencher aos poucos — o sistema salva tudo e você
-         <strong>continua de onde parou</strong>.</p>
+      <p><strong>Comece agora:</strong> sua contratação só é efetivada depois do envio
+         completo dos dados, assinaturas e documentos. Tudo fica salvo se precisar
+         interromper — mas <strong>conclua o quanto antes</strong>.</p>
       <p style="color:#667">Se o botão não funcionar, copie este endereço:<br>
          <a href="{link}">{link}</a></p>
     </div>

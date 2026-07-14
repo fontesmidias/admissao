@@ -15,10 +15,19 @@ from app.services.magic_link import emitir_link, resolver_token
 router = APIRouter(tags=["candidatos"])
 
 
+from pydantic import field_validator
+
+
 class NovoCandidato(BaseModel):
     nome_completo: str
     email: EmailStr
     celular_whatsapp: str
+
+    @field_validator("nome_completo", "email", "celular_whatsapp", mode="before")
+    @classmethod
+    def _apara_espacos(cls, v):
+        # E-mails colados do WhatsApp costumam vir com espaço no fim.
+        return v.strip() if isinstance(v, str) else v
 
 
 class CandidatoOut(BaseModel):

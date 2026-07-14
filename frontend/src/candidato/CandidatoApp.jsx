@@ -63,8 +63,11 @@ export default function CandidatoApp() {
       {tela === 'boas-vindas' && (
         <Cartao>
           <h1>Olá{nome ? `, ${nome}` : ''}! 👋</h1>
-          <p>Falta pouco para sua admissão na Green House. O processo é simples, digital e você
-             pode <strong>parar e continuar depois</strong> — é só voltar por este mesmo link.</p>
+          <p>Sua admissão na Green House depende do que você vai fazer agora — e
+             <strong> quanto antes concluir, antes sua contratação é efetivada</strong>.
+             O processo é digital e leva poucos minutos. Se precisar interromper, tudo fica
+             salvo e você continua por este mesmo link — mas <strong>não deixe para depois:
+             sem a documentação completa, o RH não pode efetivar seu registro</strong>.</p>
           <details className="lgpd">
             <summary>Aviso de Privacidade (LGPD) — toque para ler</summary>
             <p>A Green House coleta estes dados para admissão e cumprimento de obrigações
@@ -90,7 +93,8 @@ export default function CandidatoApp() {
       )}
 
       {tela === 'assinatura' && (
-        <Assinatura token={token} aoConcluir={() => setTela('documentos')} />
+        <Assinatura token={token} email={estado.pessoais?.email}
+                    aoConcluir={() => setTela('documentos')} />
       )}
 
       {tela === 'documentos' && (

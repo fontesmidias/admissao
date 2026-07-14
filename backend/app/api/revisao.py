@@ -156,7 +156,8 @@ def rejeitar(slot_id: uuid.UUID, payload: RejeicaoIn, db: Session = Depends(get_
         f"Um dos seus documentos precisa ser enviado novamente: "
         f"{_MOTIVO_LEGIVEL[payload.motivo]}"
         + (f" ({payload.observacao})" if payload.observacao else "")
-        + ".\n\nAcesse o mesmo link da sua admissão e reenvie apenas esse documento.\n",
+        + ".\n\nAcesse o mesmo link da sua admissão e reenvie esse documento HOJE. "
+          "Sua contratação fica parada até esse reenvio — não deixe para depois.\n",
     )
     return {"status": slot.status}
 

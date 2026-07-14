@@ -97,6 +97,23 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--verde); bor
 .btn-concluir { margin-top: 1.25rem; background: var(--verde-escuro); }
 .progresso-txt { font-weight: 600; margin-top: .5rem; }
 
+.radios { display: flex; flex-direction: column; gap: .5rem; }
+.radio-desc { display: flex; gap: .6rem; align-items: flex-start; border: 1.5px solid #dde5d4;
+              border-radius: 10px; padding: .7rem; font-size: .9rem; cursor: pointer; }
+.radio-desc.marcado { border-color: var(--verde); background: #f7fcf2; }
+.radio-desc input { width: auto; margin-top: .2rem; }
+.btn-ajuda-campo { width: 22px; height: 22px; font-size: .8rem; margin-left: .4rem;
+                   vertical-align: middle; }
+.lista-pendencias { margin: .4rem 0 0 1.2rem; }
+.lista-pendencias li { margin-bottom: .25rem; }
+.aviso-codigo { background: #f3f8ec; border: 1.5px solid var(--verde); border-radius: 10px;
+                padding: .9rem; font-size: .93rem; margin-bottom: 1rem; }
+.email-confirma { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap;
+                  margin: .5rem 0; }
+.email-confirma code { background: #fff; border-radius: 6px; padding: .35rem .6rem;
+                       font-size: .95rem; }
+.email-confirma input { max-width: 280px; }
+
 /* ---------- RH (desktop) ---------- */
 .rh-login { max-width: 400px; margin: 12vh auto; }
 .rh-painel { max-width: 1100px; margin: 0 auto; padding: 1.25rem; }

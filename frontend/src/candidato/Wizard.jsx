@@ -2,13 +2,19 @@ import { useState } from 'react'
 import { candidato as api } from '../api.js'
 import { Cartao } from './CandidatoApp.jsx'
 
+// Descrições idênticas às do formulário original da Green House.
+const GENERO_DESCRICOES = [
+  ['cisgenero', 'Cisgênero', 'Pessoa que se identifica com o sexo que lhe foi atribuído no nascimento. (Ex.: alguém que nasceu com o sexo biológico masculino e se identifica como homem).'],
+  ['transgenero', 'Transgênero', 'Termo abrangente para quem tem uma identidade de gênero diferente do sexo que lhe foi atribuído no nascimento.'],
+  ['transexual', 'Transexual', 'Frequentemente usado como sinônimo de transgênero, mas costuma referir-se a pessoas que buscam ou realizaram alguma transição (social, hormonal ou médica) para alinhar sua aparência física à sua identidade de gênero.'],
+  ['travesti', 'Travesti', 'Identidade de gênero feminina, com forte contexto cultural na América Latina. Refere-se a pessoas designadas ao sexo masculino ao nascer, mas que constroem sua identidade e expressão no feminino.'],
+  ['genero_fluido', 'Gênero fluido', 'Pessoa cuja identidade de gênero não é fixa. Ela pode transitar entre o masculino, o feminino ou outras identidades ao longo do tempo.'],
+  ['agenero', 'Agênero', 'Pessoa que não se identifica com nenhum gênero específico ou que sente a ausência de uma identidade de gênero.'],
+  ['nao_informar', 'Prefiro não informar', 'Opção de privacidade para quem escolhe não compartilhar essa informação.'],
+]
+
 const OPCOES = {
   sexo: [['feminino', 'Feminino'], ['masculino', 'Masculino']],
-  identidade_genero: [
-    ['cisgenero', 'Cisgênero'], ['transgenero', 'Transgênero'], ['transexual', 'Transexual'],
-    ['travesti', 'Travesti'], ['genero_fluido', 'Gênero fluido'], ['agenero', 'Agênero'],
-    ['nao_informar', 'Prefiro não informar'],
-  ],
   cor_raca: [['branca', 'Branca'], ['preta', 'Preta'], ['parda', 'Parda'],
              ['amarela', 'Amarela'], ['indigena', 'Indígena']],
   nacionalidade: [['brasileira', 'Brasileira'], ['estrangeira', 'Estrangeira']],
@@ -23,13 +29,46 @@ const OPCOES = {
   parentesco: [['conjuge', 'Cônjuge/companheiro(a)'], ['filho', 'Filho(a)'], ['menor_guarda', 'Menor sob guarda']],
 }
 
-function Campo({ rotulo, dica, children }) {
+function Campo({ rotulo, dica, ajuda, children }) {
+  const [aberta, setAberta] = useState(false)
   return (
-    <label className="campo">
-      <span className="rotulo">{rotulo}{dica && <em className="dica-inline"> — {dica}</em>}</span>
+    <div className="campo">
+      <span className="rotulo">
+        {rotulo}{dica && <em className="dica-inline"> — {dica}</em>}
+        {ajuda && (
+          <button type="button" className="btn-ajuda btn-ajuda-campo" title="Ajuda"
+                  onClick={() => setAberta(!aberta)}>?</button>
+        )}
+      </span>
+      {ajuda && aberta && <div className="slot-dica">💡 {ajuda}</div>}
       {children}
-    </label>
+    </div>
   )
+}
+
+// Mapeia os códigos de pendência da API para linguagem humana + etapa do wizard.
+const PENDENCIAS = {
+  aceite_lgpd: [0, 'Aceite do aviso de privacidade'],
+  'pessoais.data_nascimento': [0, 'Data de nascimento'], 'pessoais.sexo': [0, 'Sexo'],
+  'pessoais.identidade_genero': [0, 'Identidade de gênero'], 'pessoais.cor_raca': [0, 'Cor/raça'],
+  'pessoais.nacionalidade': [0, 'Nacionalidade'],
+  'pessoais.naturalidade_cidade': [0, 'Cidade onde nasceu'], 'pessoais.naturalidade_uf': [0, 'UF onde nasceu'],
+  'pessoais.estado_civil': [0, 'Estado civil'], 'pessoais.escolaridade': [0, 'Escolaridade'],
+  'pessoais.pcd': [0, 'Pessoa com Deficiência (sim/não)'],
+  'endereco.cep': [1, 'CEP'], 'endereco.logradouro_numero_complemento': [1, 'Rua e número'],
+  'endereco.bairro': [1, 'Bairro'], 'endereco.cidade': [1, 'Cidade'], 'endereco.uf': [1, 'UF'],
+  'documentos.rg_numero': [2, 'Número do RG'], 'documentos.rg_orgao_emissor': [2, 'Órgão emissor do RG'],
+  'documentos.rg_data_expedicao': [2, 'Data de expedição do RG'], 'documentos.cpf': [2, 'CPF'],
+  'documentos.pis_nis_pasep': [2, 'PIS/NIS/PASEP'],
+  'documentos.titulo_eleitor_numero': [2, 'Número do Título de Eleitor'],
+  'documentos.titulo_eleitor_zona': [2, 'Zona do Título'], 'documentos.titulo_eleitor_secao': [2, 'Seção do Título'],
+  'trabalho_banco.tamanho_calca': [3, 'Tamanho da calça'], 'trabalho_banco.tamanho_camisa': [3, 'Tamanho da camisa'],
+  'trabalho_banco.tamanho_calcado': [3, 'Número do calçado'], 'trabalho_banco.banco': [3, 'Banco'],
+  'trabalho_banco.pix_tipo': [3, 'Tipo de chave PIX'], 'trabalho_banco.pix_chave': [3, 'Chave PIX'],
+  'vt.optante': [5, 'Opção pelo Vale-Transporte (sim/não)'],
+  'emergencia.usa_medicamento_continuo': [5, 'Uso contínuo de medicamentos (sim/não)'],
+  'emergencia.condicoes_medicas': [5, 'Condições médicas (escreva "Nenhuma" se não tiver)'],
+  contatos_emergencia: [5, 'Pelo menos 1 contato de emergência'],
 }
 
 function Select({ valor, onChange, opcoes, vazio = 'Selecione…' }) {
@@ -135,9 +174,18 @@ export default function Wizard({ token, estado, recarregar, aoConcluir }) {
         <Campo rotulo="Sexo (conforme registro civil)">
           <Select valor={p.sexo} opcoes={OPCOES.sexo}
                   onChange={(v) => setSec('pessoais', 'sexo', v)} /></Campo>
-        <Campo rotulo="Identidade de gênero">
-          <Select valor={p.identidade_genero} opcoes={OPCOES.identidade_genero}
-                  onChange={(v) => setSec('pessoais', 'identidade_genero', v)} /></Campo>
+        <div className="campo">
+          <span className="rotulo">Identidade de gênero</span>
+          <div className="radios">
+            {GENERO_DESCRICOES.map(([v, nome, descricao]) => (
+              <label className={`radio-desc ${p.identidade_genero === v ? 'marcado' : ''}`} key={v}>
+                <input type="radio" name="identidade_genero" checked={p.identidade_genero === v}
+                       onChange={() => setSec('pessoais', 'identidade_genero', v)} />
+                <span><strong>{nome}:</strong> {descricao}</span>
+              </label>
+            ))}
+          </div>
+        </div>
         <Campo rotulo="Cor/raça (autodeclaração, IBGE)">
           <Select valor={p.cor_raca} opcoes={OPCOES.cor_raca}
                   onChange={(v) => setSec('pessoais', 'cor_raca', v)} /></Campo>
@@ -162,8 +210,10 @@ export default function Wizard({ token, estado, recarregar, aoConcluir }) {
                   onChange={(v) => setSec('pessoais', 'pcd', v == null ? null : v === 'true')} /></Campo>
         <Campo rotulo="E-mail"><input type="email" value={p.email || ''}
           onChange={(e) => setSec('pessoais', 'email', e.target.value)} /></Campo>
-        <Campo rotulo="Celular / WhatsApp (com DDD)"><input value={p.celular_whatsapp || ''}
-          onChange={(e) => setSec('pessoais', 'celular_whatsapp', e.target.value)} /></Campo>
+        <Campo rotulo="Celular / WhatsApp (com DDD)">
+          <input placeholder="(61) 99999-8888" inputMode="tel" value={p.celular_whatsapp || ''}
+                 onChange={(e) => setSec('pessoais', 'celular_whatsapp',
+                                          e.target.value.replace(/[^\d() -]/g, ''))} /></Campo>
       </>}
 
       {etapa === 1 && <>
@@ -196,7 +246,7 @@ export default function Wizard({ token, estado, recarregar, aoConcluir }) {
         <Campo rotulo="CPF"><input inputMode="numeric" maxLength={14} value={doc.cpf || ''}
           onChange={(e) => setSec('documentos', 'cpf', e.target.value.replace(/\D/g, ''))} /></Campo>
         <Campo rotulo="PIS / NIS / PASEP"
-               dica="não sabe? Consulte no app CTPS Digital, Meu INSS ou Caixa Trabalhador">
+               ajuda="Não sabe o número? Abra o app 'Carteira de Trabalho Digital', 'Meu INSS' ou 'Caixa Trabalhador' — o número aparece na tela inicial ou no seu perfil. São 11 números.">
           <input inputMode="numeric" value={doc.pis_nis_pasep || ''}
                  onChange={(e) => setSec('documentos', 'pis_nis_pasep', e.target.value.replace(/\D/g, ''))} /></Campo>
         <div className="linha2">
@@ -205,7 +255,9 @@ export default function Wizard({ token, estado, recarregar, aoConcluir }) {
           <Campo rotulo="CNH — categoria"><input value={doc.cnh_categoria || ''}
             onChange={(e) => setSec('documentos', 'cnh_categoria', e.target.value.toUpperCase())} /></Campo>
         </div>
-        <Campo rotulo="Título de Eleitor — número"><input inputMode="numeric"
+        <Campo rotulo="Título de Eleitor — número"
+               ajuda="O número, a zona e a seção aparecem no título físico ou no app e-Título. Não tem o título em mãos? Consulte grátis em tse.jus.br → Autoatendimento → Título de eleitor.">
+          <input inputMode="numeric"
           value={doc.titulo_eleitor_numero || ''}
           onChange={(e) => setSec('documentos', 'titulo_eleitor_numero', e.target.value.replace(/\D/g, ''))} /></Campo>
         <div className="linha2">
@@ -312,8 +364,10 @@ export default function Wizard({ token, estado, recarregar, aoConcluir }) {
             <div className="linha2">
               <Campo rotulo="Parentesco"><input value={c.parentesco || ''}
                 onChange={(e) => atualizaContato(i, 'parentesco', e.target.value)} /></Campo>
-              <Campo rotulo="Celular (com DDD)"><input value={c.telefone_celular || ''}
-                onChange={(e) => atualizaContato(i, 'telefone_celular', e.target.value)} /></Campo>
+              <Campo rotulo="Celular (com DDD)">
+                <input placeholder="(61) 99999-8888" inputMode="tel" value={c.telefone_celular || ''}
+                       onChange={(e) => atualizaContato(i, 'telefone_celular',
+                                                        e.target.value.replace(/[^\d() -]/g, ''))} /></Campo>
             </div>
           </fieldset>
         ))}
@@ -324,9 +378,22 @@ export default function Wizard({ token, estado, recarregar, aoConcluir }) {
 
       {pendencias && (
         <div className="alerta">
-          <strong>Falta preencher:</strong> {pendencias.slice(0, 6).join(', ')}
-          {pendencias.length > 6 && ` e mais ${pendencias.length - 6} campo(s)`}.
-          Volte nas etapas para completar.
+          <strong>Ainda falta preencher:</strong>
+          <ul className="lista-pendencias">
+            {pendencias.map((cod) => {
+              const [etapaAlvo, rotulo] = PENDENCIAS[cod] || [null, cod]
+              return (
+                <li key={cod}>
+                  {rotulo}
+                  {etapaAlvo != null && (
+                    <button className="btn-link" onClick={() => {
+                      setPendencias(null); setEtapa(etapaAlvo); window.scrollTo(0, 0)
+                    }}>ir para a etapa {etapaAlvo + 1} →</button>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
         </div>
       )}
 

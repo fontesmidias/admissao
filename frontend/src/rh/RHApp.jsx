@@ -97,13 +97,21 @@ function Painel({ aoSair }) {
               }
               setEnviandoConvite(true)
               try {
-                const r = await api.novoCandidato(novo)
+                const r = await api.novoCandidato({
+                  nome_completo: novo.nome_completo.trim(),
+                  email: novo.email.trim(),
+                  celular_whatsapp: novo.celular_whatsapp.trim(),
+                })
                 setConvite(r)
                 recarregar()
               } catch (e) {
-                setErroConvite(e.status === 422
-                  ? 'E-mail inválido — confira o endereço digitado.'
-                  : `Não foi possível criar o convite (${e.detail || e.message}).`)
+                let texto = `Não foi possível criar o convite (${e.detail || e.message}).`
+                if (e.status === 422 && Array.isArray(e.detail)) {
+                  const campos = e.detail.map((d) => `${d.loc?.slice(-1)[0]}: ${d.msg}`).join('; ')
+                  texto = `Confira os campos — ${campos}`
+                }
+                if (e.status === 401) texto = 'Sua sessão expirou. Saia e entre novamente.'
+                setErroConvite(texto)
               } finally { setEnviandoConvite(false) }
             }}>{enviandoConvite ? 'Criando…' : 'Convidar e enviar link'}</button>
           </div>

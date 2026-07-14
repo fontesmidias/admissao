@@ -70,12 +70,15 @@ class _FichaPDF(FPDF):
         self.ln(6)
 
     def secao(self, nome: str):
-        self.set_font("helvetica", "B", 11)
-        self.set_text_color(*VERDE)
-        self.cell(0, 8, nome, new_x="LMARGIN", new_y="NEXT")
+        self.ln(1)
+        self.set_font("helvetica", "B", 10.5)
+        self.set_fill_color(*AZUL)
+        self.set_text_color(255, 255, 255)
+        self.cell(190, 7, f"  {nome}", fill=True, new_x="LMARGIN", new_y="NEXT")
         self.set_text_color(30, 30, 30)
 
     def campo(self, rotulo: str, valor) -> None:
+        """Linha de tabela com bordas: rótulo em célula sombreada + valor, como nos DOCX."""
         if valor is None or valor == "":
             valor = "-"
         if isinstance(valor, bool):
@@ -84,10 +87,23 @@ class _FichaPDF(FPDF):
             valor = valor.strftime("%d/%m/%Y")
         if hasattr(valor, "value"):
             valor = str(valor.value).replace("_", " ").title()
-        self.set_font("helvetica", "B", 9)
-        self.cell(58, 6, f"{rotulo}:")
+        valor = str(valor)
+
         self.set_font("helvetica", "", 9)
-        self.multi_cell(0, 6, str(valor), new_x="LMARGIN", new_y="NEXT")
+        largura_valor = 190 - 62
+        linhas = max(1, len(self.multi_cell(largura_valor, 5.5, valor, dry_run=True,
+                                            output="LINES")))
+        altura = linhas * 5.5
+        if self.get_y() + altura > self.h - 20:
+            self.add_page()
+        x, y = self.get_x(), self.get_y()
+        self.set_font("helvetica", "B", 8.5)
+        self.set_fill_color(238, 242, 232)
+        self.cell(62, altura, f" {rotulo}", border=1, fill=True)
+        self.set_font("helvetica", "", 9)
+        self.set_xy(x + 62, y)
+        self.multi_cell(largura_valor, 5.5, valor, border=1, new_x="LMARGIN", new_y="NEXT")
+        self.set_y(max(self.get_y(), y + altura))
 
     def bloco_assinatura(self, assinatura: Assinatura, nome: str):
         self.ln(8)
