@@ -7,12 +7,37 @@
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 
+/* Escala tipográfica padronizada (mobile-first) */
+:root {
+  --fs-titulo: 1.35rem;   /* h1 */
+  --fs-sub: 1.15rem;      /* h2 */
+  --fs-secao: 1rem;       /* h3 */
+  --fs-corpo: 1rem;       /* texto e inputs (16px: evita zoom no iOS) */
+  --fs-apoio: .875rem;    /* legendas, status */
+  --toque: 48px;          /* alvo mínimo de toque */
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { background: var(--fundo); color: #1f2430; line-height: 1.45; }
-h1 { font-size: 1.5rem; color: var(--azul); margin-bottom: .75rem; }
-h2 { font-size: 1.25rem; color: var(--azul); margin-bottom: .75rem; }
-h3 { font-size: 1.05rem; color: var(--azul); margin: 1rem 0 .5rem; }
+html { font-size: 16px; -webkit-text-size-adjust: 100%; }
+body { background: var(--fundo); color: #1f2430; line-height: 1.5; font-size: var(--fs-corpo); }
+h1 { font-size: var(--fs-titulo); color: var(--azul); margin-bottom: .75rem; }
+h2 { font-size: var(--fs-sub); color: var(--azul); margin-bottom: .75rem; }
+h3 { font-size: var(--fs-secao); color: var(--azul); margin: 1rem 0 .5rem; }
 a { color: var(--verde-escuro); }
+
+/* Stepper da jornada do candidato */
+.stepper { display: flex; gap: .25rem; max-width: 560px; margin: 0 auto .75rem;
+           padding: 0 1rem; }
+.passo { flex: 1; display: flex; flex-direction: column; align-items: center; gap: .25rem;
+         padding: .4rem .1rem; border-top: 4px solid #d9e2d0; color: #8a9580; }
+.passo-num { width: 26px; height: 26px; border-radius: 50%; background: #d9e2d0; color: #fff;
+             display: flex; align-items: center; justify-content: center; font-weight: 700;
+             font-size: var(--fs-apoio); }
+.passo-nome { font-size: .72rem; font-weight: 600; text-align: center; }
+.passo.atual { border-top-color: var(--verde); color: var(--azul); }
+.passo.atual .passo-num { background: var(--verde); }
+.passo.feito { border-top-color: var(--verde-escuro); color: var(--verde-escuro); }
+.passo.feito .passo-num { background: var(--verde-escuro); }
 
 .welcome { max-width: 640px; margin: 15vh auto; padding: 2rem; text-align: center; }
 .welcome p { margin-top: .75rem; }
@@ -33,8 +58,9 @@ a { color: var(--verde-escuro); }
 .rotulo { display: block; font-weight: 600; font-size: .92rem; margin-bottom: .3rem; }
 .dica-inline { font-weight: 400; color: #778; font-style: normal; font-size: .85rem; }
 input, select, textarea {
-  width: 100%; padding: .65rem .75rem; border: 1.5px solid #cfd8c9; border-radius: 9px;
-  font-size: 1rem; background: #fff;
+  width: 100%; min-height: var(--toque); padding: .65rem .75rem;
+  border: 1.5px solid #cfd8c9; border-radius: 9px;
+  font-size: var(--fs-corpo); background: #fff;
 }
 input:focus, select:focus, textarea:focus { outline: 2px solid var(--verde); border-color: var(--verde); }
 .linha2 { display: grid; grid-template-columns: 2fr 1fr; gap: .75rem; }
@@ -42,7 +68,8 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--verde); bor
 
 .btn-principal {
   background: var(--verde); color: #fff; border: 0; border-radius: 10px; font-weight: 700;
-  font-size: 1.05rem; padding: .85rem 1.4rem; cursor: pointer; width: 100%; margin-top: .5rem;
+  font-size: var(--fs-corpo); min-height: var(--toque);
+  padding: .85rem 1.4rem; cursor: pointer; width: 100%; margin-top: .5rem;
 }
 .btn-principal:disabled { background: #c5d6ae; cursor: not-allowed; }
 .btn-secundario {
@@ -142,7 +169,19 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--verde); bor
 .rejeicao { display: flex; gap: .5rem; margin-top: .6rem; flex-wrap: wrap; }
 .rejeicao select, .rejeicao input { width: auto; flex: 1; }
 
+/* Mobile-first: ajustes para telas pequenas */
 @media (max-width: 800px) {
   .rh-revisao { grid-template-columns: 1fr; }
   .linha3 { grid-template-columns: 1fr; }
+  .rh-tabela { display: block; overflow-x: auto; }
+}
+
+@media (max-width: 480px) {
+  .cartao { margin: 0 .5rem; padding: 1.1rem; border-radius: 12px; }
+  .linha2 { grid-template-columns: 1fr; }
+  .navegacao { flex-direction: column-reverse; }
+  .navegacao .btn-secundario { width: 100%; }
+  .slot-linha { flex-wrap: wrap; }
+  .slot-linha .btn-mini { width: 100%; }
+  .otp input { width: 100%; }
 }

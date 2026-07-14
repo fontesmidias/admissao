@@ -53,12 +53,26 @@ export default function CandidatoApp() {
 
   const nome = (estado.pessoais?.nome_completo || '').split(' ')[0]
 
+  const PASSOS = ['Seus dados', 'Assinatura', 'Documentos', 'Conferência']
+  const passoAtual = { 'boas-vindas': 0, formulario: 0, assinatura: 1,
+                       documentos: 2, acompanhamento: 3 }[tela]
+
   return (
     <div className="candidato">
       <header className="topo">
         <span className="logo">🌱 Green House</span>
         <button className="btn-ajuda" title="Rever explicação" onClick={() => tour.drive()}>?</button>
       </header>
+
+      <nav className="stepper" aria-label="Etapas da admissão">
+        {PASSOS.map((nome, i) => (
+          <div key={nome}
+               className={`passo ${i === passoAtual ? 'atual' : ''} ${i < passoAtual ? 'feito' : ''}`}>
+            <span className="passo-num">{i < passoAtual ? '✓' : i + 1}</span>
+            <span className="passo-nome">{nome}</span>
+          </div>
+        ))}
+      </nav>
 
       {tela === 'boas-vindas' && (
         <Cartao>
@@ -112,13 +126,17 @@ function Acompanhamento({ token, estado }) {
   const aprovado = estado.status === 'aprovado'
   return (
     <Cartao>
+      <p className="etapa-num">Parte 4 de 4 — Conferência</p>
       {aprovado ? (
         <><h1>🎉 Documentação completa!</h1>
-          <p>Bem-vindo(a) à Green House! O RH vai entrar em contato com os próximos passos.</p></>
+          <p>Bem-vindo(a) à Green House! Sua documentação foi aprovada. O RH entrará em
+             contato com as orientações do seu primeiro dia.</p></>
       ) : (
         <><h1>📥 Recebemos seu envio!</h1>
-          <p>O RH está conferindo seus documentos. Se algo precisar ser reenviado, avisaremos
-             por e-mail e este link será reaberto automaticamente.</p>
+          <p><strong>O que acontece agora:</strong> o RH confere cada documento. Se algum
+             precisar ser reenviado, você receberá um e-mail explicando o motivo e este link
+             reabrirá automaticamente apenas para aquele documento. Quando tudo for aprovado,
+             você será avisado(a) por aqui e por e-mail.</p>
           {check && <p className="progresso-txt">
             {check.progresso.ok} de {check.progresso.total} documentos conferidos/recebidos.</p>}</>
       )}

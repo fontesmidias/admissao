@@ -73,9 +73,12 @@ export default function Checklist({ token, aoConcluir }) {
       </div>
       <p className="etapa-num">{check.progresso.ok} de {check.progresso.total} documentos obrigatórios ok</p>
       <h2>📄 Envie seus documentos</h2>
+      <p className="etapa-num">Parte 3 de 4 — Documentos</p>
       <p className="explica">Toque em <strong>Enviar</strong> e fotografe ou escolha o arquivo
-        (foto, PDF ou Word — a gente converte). Não sabe onde conseguir? Toque no
-        <strong> ?</strong> do item.</p>
+        (foto, PDF ou Word — nós convertemos). Não sabe onde conseguir um documento? Toque no
+        <strong> ?</strong> do item. Ao terminar tudo, toque em
+        <strong> CONCLUÍ MEU ENVIO</strong> — o RH será avisado e fará a conferência
+        (parte 4 de 4). Você receberá retorno por e-mail.</p>
 
       {check.slots.map((s) => {
         const info = DICAS[s.tipo] || { nome: s.tipo, dica: '' }

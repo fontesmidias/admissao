@@ -163,8 +163,12 @@ export default function Wizard({ token, estado, recarregar, aoConcluir }) {
       <div className="progresso">
         <div className="progresso-barra" style={{ width: `${((etapa + 1) / 6) * 100}%` }} />
       </div>
-      <p className="etapa-num">Etapa {etapa + 1} de 6 · salvo automaticamente ✓</p>
+      <p className="etapa-num">Parte 1 de 4 — Seus dados · passo {etapa + 1} de 6 · salvo automaticamente ✓</p>
       <h2>{TITULOS[etapa]}</h2>
+      {etapa === 5 && (
+        <p className="explica">Este é o último passo dos seus dados. Ao confirmar,
+          você seguirá para a <strong>assinatura dos 3 documentos</strong> (parte 2 de 4).</p>
+      )}
 
       {etapa === 0 && <>
         <Campo rotulo="Nome completo"><input value={p.nome_completo || ''}

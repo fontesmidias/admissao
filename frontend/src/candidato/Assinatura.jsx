@@ -63,9 +63,13 @@ export default function Assinatura({ token, email, aoConcluir }) {
 
   return (
     <Cartao>
+      <p className="etapa-num">Parte 2 de 4 — Assinatura</p>
       <h2>✍️ Assinatura dos documentos admissionais</h2>
-      <p className="explica"><strong>Esta etapa é obrigatória e deve ser concluída agora.</strong> A
-        sua admissão somente prossegue após a assinatura dos três documentos abaixo.</p>
+      <p className="explica">Seus dados foram registrados com sucesso. Agora,
+        <strong> esta etapa é obrigatória e deve ser concluída em seguida</strong>: a sua
+        admissão somente prossegue após a assinatura dos três documentos abaixo. Depois dela,
+        restarão duas partes: <strong>envio dos seus documentos</strong> (fotos) e a
+        <strong> conferência pelo RH</strong>.</p>
 
       <div className="lista-fichas">
         {fichas.map(({ documento, assinado }) => (
@@ -134,9 +138,16 @@ export default function Assinatura({ token, email, aoConcluir }) {
       {msg && <div className={msg.tipo === 'erro' ? 'alerta' : 'sucesso'}>{msg.texto}</div>}
 
       {todasAssinadas && (
-        <button className="btn-principal btn-concluir" onClick={aoConcluir}>
-          Prosseguir para o envio dos documentos →
-        </button>
+        <>
+          <div className="aviso-codigo" style={{ marginTop: '1rem' }}>
+            <strong>Próxima etapa (parte 3 de 4):</strong> enviar fotos ou arquivos dos seus
+            documentos pessoais (RG, CPF, comprovantes…). Uma lista mostrará exatamente o que
+            é necessário, um por um, com dicas de onde conseguir cada documento.
+          </div>
+          <button className="btn-principal btn-concluir" onClick={aoConcluir}>
+            Continuar para o envio dos documentos →
+          </button>
+        </>
       )}
     </Cartao>
   )
