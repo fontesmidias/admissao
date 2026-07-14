@@ -8,6 +8,7 @@ from app.api.auth_rh import requer_rh
 from app.core.db import get_db
 from app.models.candidato import Candidato, StatusCandidato
 from app.models.usuario_rh import UsuarioRH
+from app.services.email import email_convite, enviar_email
 from app.services.magic_link import emitir_link, resolver_token
 
 router = APIRouter(tags=["candidatos"])
@@ -32,6 +33,7 @@ class CandidatoOut(BaseModel):
 class ConviteOut(BaseModel):
     candidato: CandidatoOut
     link_magico: str
+    email_enviado: bool
 
 
 # --- RH (protegido) ---
@@ -43,13 +45,37 @@ def criar_candidato(
     db: Session = Depends(get_db),
     _rh: UsuarioRH = Depends(requer_rh),
 ) -> ConviteOut:
-    """Cadastra o candidato aprovado e emite o link mágico (envio por e-mail no módulo SMTP)."""
+    """Cadastra o candidato aprovado, emite o link mágico e envia o convite por e-mail.
+    O link também volta na resposta: se o SMTP falhar, o RH envia manualmente (WhatsApp)."""
     candidato = Candidato(**payload.model_dump())
     db.add(candidato)
     db.flush()
     link = emitir_link(db, candidato)
     db.commit()
-    return ConviteOut(candidato=CandidatoOut.model_validate(candidato), link_magico=link)
+    assunto, texto, html = email_convite(candidato.nome_completo, link)
+    enviado = enviar_email(candidato.email, assunto, texto, html)
+    return ConviteOut(
+        candidato=CandidatoOut.model_validate(candidato), link_magico=link, email_enviado=enviado
+    )
+
+
+@router.post("/rh/candidatos/{candidato_id}/reenviar-link", response_model=ConviteOut)
+def reenviar_link(
+    candidato_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    _rh: UsuarioRH = Depends(requer_rh),
+) -> ConviteOut:
+    """Emite um novo link mágico (o anterior continua válido até expirar) e reenvia o convite."""
+    candidato = db.get(Candidato, candidato_id)
+    if candidato is None:
+        raise HTTPException(status_code=404, detail="candidato_nao_encontrado")
+    link = emitir_link(db, candidato)
+    db.commit()
+    assunto, texto, html = email_convite(candidato.nome_completo, link)
+    enviado = enviar_email(candidato.email, assunto, texto, html)
+    return ConviteOut(
+        candidato=CandidatoOut.model_validate(candidato), link_magico=link, email_enviado=enviado
+    )
 
 
 # --- Candidato (acesso via token do link mágico) ---
