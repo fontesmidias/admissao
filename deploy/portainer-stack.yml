@@ -6,9 +6,11 @@
 # as variáveis de ambiente na própria tela do Portainer (ou cole o conteúdo
 # do seu .env em "Environment variables → Advanced mode").
 #
-# Como o repositório é PRIVADO, faça login no registry na VPS uma única vez:
-#   docker login ghcr.io -u SEU_USUARIO_GITHUB -p SEU_TOKEN_PAT
-#   (token clássico com escopo read:packages)
+# Se os pacotes do GHCR estiverem privados, faça login no registry uma vez:
+#   docker login ghcr.io -u SEU_USUARIO_GITHUB -p SEU_TOKEN_PAT  (escopo read:packages)
+# Dica: com o repositório público, você pode tornar os pacotes públicos em
+#   github.com/fontesmidias?tab=packages → pacote → Package settings → Change
+#   visibility — aí o pull dispensa login.
 #
 # Acesso: http://SEU_IP:${FRONTEND_PORT}  — ⚠️ sem HTTPS: use para validação.
 # Com domínio, prefira deploy/docker-compose.traefik.yml (TLS automático).
