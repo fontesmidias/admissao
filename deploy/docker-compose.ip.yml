@@ -1,0 +1,11 @@
+# Stack "IP direto" — Docker Desktop/Portainer local OU VPS sem domínio.
+# Única porta publicada: FRONTEND_PORT (definida no .env; nunca commitada).
+#
+# ⚠️ SEM HTTPS: use apenas para validação interna. Não envie link mágico a
+#    candidatos reais neste modo — o tráfego não é criptografado.
+#    Acesso: http://SEU_IP:${FRONTEND_PORT}
+
+services:
+  frontend:
+    ports:
+      - "${FRONTEND_PORT}:80"

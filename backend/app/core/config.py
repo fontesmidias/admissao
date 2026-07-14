@@ -1,0 +1,39 @@
+from functools import lru_cache
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    """Configuração 100% via variáveis de ambiente (.env). Nenhum valor de infra no código."""
+
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
+    app_name: str = "Portal de Admissão Green House"
+    environment: str = "development"
+    secret_key: str = "troque-me"
+    base_url: str = "http://localhost:8090"
+
+    database_url: str = "postgresql+psycopg://admissao:admissao@db:5432/admissao"
+
+    redis_url: str = "redis://redis:6379/0"
+
+    minio_endpoint: str = "minio:9000"
+    minio_access_key: str = "minio"
+    minio_secret_key: str = "troque-me"
+    minio_bucket: str = "admissao"
+    minio_secure: bool = False
+
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = "rh@greenhousedf.com.br"
+
+    magic_link_ttl_hours: int = 72
+    otp_ttl_minutes: int = 10
+    retention_days: int = 90
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()

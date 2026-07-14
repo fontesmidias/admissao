@@ -1,0 +1,61 @@
+# Serviços comuns às três stacks. Use sempre combinado com uma das variantes:
+#   docker compose -f deploy/docker-compose.base.yml -f deploy/docker-compose.ip.yml up -d
+#   docker compose -f deploy/docker-compose.base.yml -f deploy/docker-compose.traefik.yml up -d
+#   docker compose -f deploy/docker-compose.base.yml -f deploy/docker-compose.certbot.yml up -d
+
+services:
+  api:
+    build: ../backend
+    env_file: ../.env
+    depends_on:
+      - db
+      - redis
+      - minio
+    networks: [internal]
+    restart: unless-stopped
+
+  worker:
+    build: ../backend
+    command: rq worker --url ${REDIS_URL} default
+    env_file: ../.env
+    depends_on:
+      - redis
+      - minio
+    networks: [internal]
+    restart: unless-stopped
+
+  frontend:
+    build: ../frontend
+    depends_on:
+      - api
+    networks: [internal]
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    env_file: ../.env
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks: [internal]
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    networks: [internal]
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    command: server /data
+    env_file: ../.env
+    volumes:
+      - minio-data:/data
+    networks: [internal]
+    restart: unless-stopped
+
+networks:
+  internal:
+
+volumes:
+  postgres-data:
+  minio-data:

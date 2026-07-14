@@ -1,0 +1,35 @@
+# Stack Traefik — VPS com domínio. TLS automático via Let's Encrypt (ACME).
+# Requer no .env: DOMAIN e ACME_EMAIL.
+
+services:
+  traefik:
+    image: traefik:v3.1
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --certificatesresolvers.le.acme.email=${ACME_EMAIL}
+      - --certificatesresolvers.le.acme.storage=/letsencrypt/acme.json
+      - --certificatesresolvers.le.acme.httpchallenge.entrypoint=web
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik-letsencrypt:/letsencrypt
+    networks: [internal]
+    restart: unless-stopped
+
+  frontend:
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.admissao.rule=Host(`${DOMAIN}`)
+      - traefik.http.routers.admissao.entrypoints=websecure
+      - traefik.http.routers.admissao.tls.certresolver=le
+      - traefik.http.services.admissao.loadbalancer.server.port=80
+
+volumes:
+  traefik-letsencrypt:

@@ -1,0 +1,24 @@
+# Stack Certbot — VPS que JÁ possui certbot/nginx emitindo certificados.
+# O container do front publica apenas em 127.0.0.1:${FRONTEND_PORT}; o nginx
+# do host faz o TLS com o certificado do certbot existente e repassa.
+#
+# Exemplo de server block no nginx DO HOST (ajuste e rode: certbot --nginx -d $DOMAIN):
+#
+#   server {
+#       server_name admissao.seudominio.com.br;
+#       listen 443 ssl;
+#       ssl_certificate     /etc/letsencrypt/live/admissao.seudominio.com.br/fullchain.pem;
+#       ssl_certificate_key /etc/letsencrypt/live/admissao.seudominio.com.br/privkey.pem;
+#       client_max_body_size 50m;
+#       location / {
+#           proxy_pass http://127.0.0.1:8090;   # = FRONTEND_PORT
+#           proxy_set_header Host $host;
+#           proxy_set_header X-Forwarded-Proto https;
+#           proxy_set_header X-Real-IP $remote_addr;
+#       }
+#   }
+
+services:
+  frontend:
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT}:80"

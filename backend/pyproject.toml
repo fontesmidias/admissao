@@ -1,0 +1,30 @@
+[project]
+name = "admissao-backend"
+version = "0.1.0"
+description = "API do Portal de Admissão Green House"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "sqlalchemy>=2.0",
+    "psycopg[binary]>=3.2",
+    "alembic>=1.13",
+    "pydantic-settings>=2.4",
+    "python-multipart>=0.0.9",
+    "minio>=7.2",
+    "redis>=5.0",
+    "rq>=1.16",
+    "pypdf>=4.3",
+    "img2pdf>=0.5",
+    "pillow>=10.4",
+    "weasyprint>=62",
+    "email-validator>=2.2",
+    "itsdangerous>=2.2",
+    "passlib[bcrypt]>=1.7",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "httpx>=0.27", "ruff>=0.6"]
+
+[tool.ruff]
+line-length = 100
