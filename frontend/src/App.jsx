@@ -1,10 +1,13 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Link } from 'react-router-dom'
+import CandidatoApp from './candidato/CandidatoApp.jsx'
+import RHApp from './rh/RHApp.jsx'
 
 function Home() {
   return (
     <main className="welcome">
       <h1>🌱 Portal de Admissão — Green House</h1>
-      <p>Esqueleto v0.1 — as telas do candidato e do RH nascem aqui.</p>
+      <p>Candidato: use o link que você recebeu por e-mail ou WhatsApp.</p>
+      <p><Link to="/rh">Acesso do RH →</Link></p>
     </main>
   )
 }
@@ -13,8 +16,8 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<Home />} />
-      {/* /c/:token — jornada do candidato (link mágico) */}
-      {/* /rh — painel do RH */}
+      <Route path="/c/:token/*" element={<CandidatoApp />} />
+      <Route path="/rh/*" element={<RHApp />} />
     </Routes>
   )
 }

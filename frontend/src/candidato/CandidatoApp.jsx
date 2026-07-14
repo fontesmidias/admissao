@@ -1,0 +1,127 @@
+import { useEffect, useMemo, useState } from 'react'
+import { useParams } from 'react-router-dom'
+import { driver } from 'driver.js'
+import 'driver.js/dist/driver.css'
+import { candidato as api } from '../api.js'
+import Wizard from './Wizard.jsx'
+import Assinatura from './Assinatura.jsx'
+import Checklist from './Checklist.jsx'
+
+export default function CandidatoApp() {
+  const { token } = useParams()
+  const [estado, setEstado] = useState(null)
+  const [erro, setErro] = useState(null)
+  const [tela, setTela] = useState(null) // boas-vindas | formulario | assinatura | documentos | acompanhamento
+
+  const recarregar = async () => {
+    const e = await api.ficha(token)
+    setEstado(e)
+    return e
+  }
+
+  useEffect(() => {
+    recarregar()
+      .then((e) => {
+        if (!e.aceite_lgpd_em) setTela('boas-vindas')
+        else if (['convidado', 'preenchendo'].includes(e.status)) setTela('formulario')
+        else if (e.status === 'aguardando_assinatura') setTela('assinatura')
+        else if (e.status === 'docs_pendentes') setTela('documentos')
+        else setTela('acompanhamento')
+      })
+      .catch((e) => setErro(e.status === 404 ? 'link' : 'geral'))
+  }, [token])
+
+  const tour = useMemo(() => driver({
+    showProgress: true,
+    nextBtnText: 'Próximo', prevBtnText: 'Voltar', doneBtnText: 'Entendi!',
+    steps: [
+      { popover: { title: '👋 Bem-vindo(a)!', description: 'Sua admissão é 100% digital e leva poucos minutos. Vamos te mostrar como funciona.' } },
+      { popover: { title: '📝 1. Preencha seus dados', description: 'Responda o formulário com calma. Tudo é salvo automaticamente — pode parar e voltar depois pelo mesmo link.' } },
+      { popover: { title: '✍️ 2. Assine 3 documentos', description: 'Você confere os documentos prontos e assina digitando um código que enviamos por e-mail. Sem imprimir nada.' } },
+      { popover: { title: '📄 3. Envie fotos dos documentos', description: 'Uma lista mostra o que falta. Toque no botão "?" de cada item para ver dicas de onde conseguir.' } },
+    ],
+  }), [])
+
+  if (erro === 'link') return (
+    <Cartao>
+      <h2>😕 Este link não está mais ativo</h2>
+      <p>Ele pode ter vencido. Fale com o RH da Green House pelo WhatsApp para receber um novo link.</p>
+    </Cartao>
+  )
+  if (erro) return <Cartao><h2>Algo deu errado</h2><p>Tente recarregar a página.</p></Cartao>
+  if (!estado || !tela) return <Cartao><p>Carregando…</p></Cartao>
+
+  const nome = (estado.pessoais?.nome_completo || '').split(' ')[0]
+
+  return (
+    <div className="candidato">
+      <header className="topo">
+        <span className="logo">🌱 Green House</span>
+        <button className="btn-ajuda" title="Rever explicação" onClick={() => tour.drive()}>?</button>
+      </header>
+
+      {tela === 'boas-vindas' && (
+        <Cartao>
+          <h1>Olá{nome ? `, ${nome}` : ''}! 👋</h1>
+          <p>Falta pouco para sua admissão na Green House. O processo é simples, digital e você
+             pode <strong>parar e continuar depois</strong> — é só voltar por este mesmo link.</p>
+          <details className="lgpd">
+            <summary>Aviso de Privacidade (LGPD) — toque para ler</summary>
+            <p>A Green House coleta estes dados para admissão e cumprimento de obrigações
+               trabalhistas, previdenciárias e fiscais (LGPD, art. 7º, II, V e VI). Cor/raça e
+               dados de saúde são tratados para cumprimento de obrigação legal e proteção da sua
+               vida e integridade física (art. 11, II, 'a' e 'e'), com uso restrito a essas
+               finalidades.</p>
+          </details>
+          <button className="btn-principal" onClick={async () => {
+            await api.aceiteLgpd(token)
+            setTela('formulario')
+            if (!localStorage.getItem('tour_visto')) {
+              localStorage.setItem('tour_visto', '1')
+              setTimeout(() => tour.drive(), 400)
+            }
+          }}>Li e concordo em continuar</button>
+        </Cartao>
+      )}
+
+      {tela === 'formulario' && (
+        <Wizard token={token} estado={estado} recarregar={recarregar}
+                aoConcluir={() => setTela('assinatura')} />
+      )}
+
+      {tela === 'assinatura' && (
+        <Assinatura token={token} aoConcluir={() => setTela('documentos')} />
+      )}
+
+      {tela === 'documentos' && (
+        <Checklist token={token} aoConcluir={() => setTela('acompanhamento')} />
+      )}
+
+      {tela === 'acompanhamento' && <Acompanhamento token={token} estado={estado} />}
+    </div>
+  )
+}
+
+function Acompanhamento({ token, estado }) {
+  const [check, setCheck] = useState(null)
+  useEffect(() => { api.documentos(token).then(setCheck).catch(() => {}) }, [token])
+  const aprovado = estado.status === 'aprovado'
+  return (
+    <Cartao>
+      {aprovado ? (
+        <><h1>🎉 Documentação completa!</h1>
+          <p>Bem-vindo(a) à Green House! O RH vai entrar em contato com os próximos passos.</p></>
+      ) : (
+        <><h1>📥 Recebemos seu envio!</h1>
+          <p>O RH está conferindo seus documentos. Se algo precisar ser reenviado, avisaremos
+             por e-mail e este link será reaberto automaticamente.</p>
+          {check && <p className="progresso-txt">
+            {check.progresso.ok} de {check.progresso.total} documentos conferidos/recebidos.</p>}</>
+      )}
+    </Cartao>
+  )
+}
+
+export function Cartao({ children }) {
+  return <main className="cartao">{children}</main>
+}

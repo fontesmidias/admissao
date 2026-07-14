@@ -110,8 +110,31 @@ class _FichaPDF(FPDF):
         )
 
 
+def _nota(pdf: _FichaPDF, texto: str):
+    pdf.set_font("helvetica", "I", 8)
+    pdf.set_text_color(90, 90, 90)
+    pdf.multi_cell(0, 4.5, texto)
+    pdf.set_text_color(30, 30, 30)
+    pdf.ln(1)
+
+
+def _declaracao(pdf: _FichaPDF, titulo: str, texto: str, candidato: Candidato):
+    pdf.ln(3)
+    pdf.secao(titulo)
+    pdf.set_font("helvetica", "", 9)
+    pdf.multi_cell(0, 5, texto)
+    pdf.ln(1)
+    quando = (candidato.declaracao_veracidade_em.strftime("%d/%m/%Y %H:%M UTC")
+              if candidato.declaracao_veracidade_em else "-")
+    pdf.campo("Data/hora do preenchimento", quando)
+    pdf.campo("Identificador da resposta", str(candidato.id))
+    _nota(pdf, "Documento eletrônico gerado automaticamente pela Green House a partir do "
+               "Formulário de Admissão preenchido pelo(a) colaborador(a). A autenticidade "
+               "pode ser verificada pelo identificador da resposta acima.")
+
+
 def _dump_pessoais(pdf: _FichaPDF, candidato: Candidato, p: DadosPessoais | None):
-    pdf.secao("Dados Pessoais")
+    pdf.secao("1. DADOS PESSOAIS")
     pdf.campo("Nome completo", candidato.nome_completo)
     if p:
         pdf.campo("Data de nascimento", p.data_nascimento)
@@ -134,19 +157,20 @@ def gerar_ficha_cadastro(db: Session, candidato: Candidato,
     b = db.get(DadosProfissionaisBancarios, candidato.id)
     deps = db.scalars(select(Dependente).where(Dependente.candidato_id == candidato.id)).all()
 
-    pdf = _FichaPDF("Ficha de Registro do Colaborador")
+    pdf = _FichaPDF("FICHA CADASTRAL DO COLABORADOR")
+    _nota(pdf, "Documento gerado eletronicamente a partir do Formulário de Admissão Green House.")
     _dump_pessoais(pdf, candidato, p)
     if p:
-        pdf.campo("Cor/raça (autodeclaração)", p.cor_raca)
+        pdf.campo("Cor/raça (autodeclaração, IBGE)", p.cor_raca)
 
-    pdf.ln(2); pdf.secao("Endereço")
+    pdf.ln(2); pdf.secao("2. ENDEREÇO")
     if e:
         pdf.campo("Endereço", e.logradouro_numero_complemento)
         pdf.campo("Bairro", e.bairro)
         pdf.campo("Cidade/UF", f"{e.cidade or '-'}/{e.uf or '-'}")
         pdf.campo("CEP", e.cep)
 
-    pdf.ln(2); pdf.secao("Documentos")
+    pdf.ln(2); pdf.secao("3. DOCUMENTOS")
     if d:
         pdf.campo("RG", f"{d.rg_numero or '-'} — {d.rg_orgao_emissor or '-'}")
         pdf.campo("RG — expedição", d.rg_data_expedicao)
@@ -158,20 +182,55 @@ def gerar_ficha_cadastro(db: Session, candidato: Candidato,
                   f"{d.titulo_eleitor_numero or '-'} zona {d.titulo_eleitor_zona or '-'} "
                   f"seção {d.titulo_eleitor_secao or '-'}")
 
-    pdf.ln(2); pdf.secao("Uniforme e Dados Bancários")
+        _nota(pdf, "Observação: a CTPS é utilizada exclusivamente em meio digital "
+                   "(Lei nº 13.874/2019). No formato digital, o número corresponde aos 7 "
+                   "primeiros dígitos do CPF e a série aos 4 últimos.")
+
+    pdf.ln(2); pdf.secao("4. UNIFORME")
     if b:
-        pdf.campo("Uniforme (calça/camisa/calçado)",
+        pdf.campo("Tamanho (calça / camisa / calçado)",
                   f"{b.tamanho_calca or '-'} / {b.tamanho_camisa or '-'} / {b.tamanho_calcado or '-'}")
+
+    pdf.ln(2); pdf.secao("5. DADOS BANCÁRIOS / CHAVE PIX (para pagamento do salário)")
+    if b:
         pdf.campo("Banco", b.banco)
-        pdf.campo("Chave PIX", f"{(b.pix_tipo.value if b.pix_tipo else '-')}: {b.pix_chave or '-'}")
+        pdf.campo("Tipo de chave PIX", b.pix_tipo)
+        pdf.campo("Chave PIX", b.pix_chave)
 
     if deps:
-        pdf.ln(2); pdf.secao("Dependentes")
+        pdf.ln(2); pdf.secao("6. DEPENDENTES")
         for i, dep in enumerate(deps, 1):
             pdf.campo(f"Dependente {i}",
                       f"{dep.nome_completo} — {dep.data_nascimento.strftime('%d/%m/%Y')} — "
                       f"CPF {dep.cpf} — {dep.parentesco.value} — "
                       f"IRRF: {'sim' if dep.deduz_irrf else 'não'}")
+
+    pdf.ln(2); pdf.secao("7. AUTORIZAÇÕES E TRATAMENTO DE DADOS")
+    pdf.set_font("helvetica", "", 8)
+    pdf.multi_cell(0, 4.5,
+        "a) Autodeclaração de cor/raça — informação autodeclarada conforme a classificação do "
+        "IBGE, em atendimento ao eSocial.\n"
+        "b) Dependentes para o IRRF — declaro que os dependentes indicados atendem às condições "
+        "da Lei nº 9.250/1995 e da legislação vigente da Receita Federal.\n"
+        "c) Proteção de dados (LGPD — Lei nº 13.709/2018). A Green House Serviços de Locação de "
+        "Mão de Obra Ltda. (CNPJ 12.531.678/0001-80), controladora, trata os dados para admissão "
+        "e cumprimento de obrigações trabalhistas, previdenciárias, fiscais e regulatórias "
+        "(art. 7º, II, V e VI). Dados sensíveis (cor/raça e saúde) são tratados para cumprimento "
+        "de obrigação legal e proteção da vida e da incolumidade física do titular (art. 11, II, "
+        "'a' e 'e'). O titular pode exercer os direitos do art. 18 da LGPD.")
+
+    cpf = d.cpf if d else "-"
+    _declaracao(
+        pdf, "8. DECLARAÇÃO ELETRÔNICA DE PREENCHIMENTO E RESPONSABILIDADE",
+        f"Eu, {candidato.nome_completo}, inscrito(a) no CPF nº {cpf}, declaro que preenchi "
+        "pessoalmente o Formulário de Admissão da Green House e que todas as informações "
+        "constantes neste documento são verdadeiras, completas, atuais e de minha inteira "
+        "responsabilidade. Declaro estar ciente das sanções aplicáveis em caso de declaração "
+        "falsa ou omissão, em especial o art. 299 do Código Penal (falsidade ideológica) e o "
+        "parágrafo único do art. 10 do Decreto nº 83.936/1979, comprometendo-me a comunicar à "
+        "empresa qualquer alteração dos dados aqui informados.",
+        candidato,
+    )
 
     if assinatura:
         pdf.bloco_assinatura(assinatura, candidato.nome_completo)
@@ -188,31 +247,55 @@ def gerar_ficha_emergencia(db: Session, candidato: Candidato,
         .order_by(ContatoEmergencia.ordem)
     ).all()
 
-    pdf = _FichaPDF("Ficha de Emergência")
-    pdf.secao("Colaborador")
+    d = db.get(DocumentosIdentificacao, candidato.id)
+    e = db.get(Endereco, candidato.id)
+
+    pdf = _FichaPDF("FICHA DE EMERGÊNCIA DO COLABORADOR")
+    _nota(pdf, "Documento gerado eletronicamente a partir do Formulário de Admissão Green House.")
+    pdf.secao("1. DADOS DO COLABORADOR")
     pdf.campo("Nome completo", candidato.nome_completo)
     if p:
         pdf.campo("Data de nascimento", p.data_nascimento)
-    pdf.campo("Celular", candidato.celular_whatsapp)
+        pdf.campo("Pessoa com Deficiência (PCD)", p.pcd)
+    if d:
+        pdf.campo("CPF", d.cpf)
+        pdf.campo("RG", d.rg_numero)
+    if e:
+        pdf.campo("Endereço residencial", e.logradouro_numero_complemento)
+        pdf.campo("Cidade/UF — CEP", f"{e.cidade or '-'}/{e.uf or '-'} — {e.cep or '-'}")
+    pdf.campo("Celular / WhatsApp", candidato.celular_whatsapp)
+    pdf.campo("E-mail", candidato.email)
 
-    pdf.ln(2); pdf.secao("Saúde")
+    pdf.ln(2); pdf.secao("2. INFORMAÇÕES DE SAÚDE")
     if fe:
         pdf.campo("Tipo sanguíneo", fe.tipo_sanguineo)
-        pdf.campo("Uso contínuo de medicamentos", fe.usa_medicamento_continuo)
-        pdf.campo("Medicamentos", fe.medicamentos)
-        pdf.campo("Condições médicas", fe.condicoes_medicas)
-        pdf.campo("Orientação em emergência", fe.orientacao_emergencia)
+        pdf.campo("Uso contínuo de medicamentos?", fe.usa_medicamento_continuo)
+        pdf.campo("Quais medicamentos", fe.medicamentos)
+        pdf.campo("Condições médicas importantes", fe.condicoes_medicas)
 
-    pdf.ln(2); pdf.secao("Contatos de Emergência")
     for c in contatos:
-        pdf.campo(f"Contato {c.ordem}",
-                  f"{c.nome_completo} ({c.parentesco}) — {c.telefone_celular}"
-                  + (f" — {c.telefone_fixo_endereco}" if c.telefone_fixo_endereco else ""))
+        pdf.ln(2); pdf.secao(f"{2 + c.ordem}. CONTATO DE EMERGÊNCIA {c.ordem}")
+        pdf.campo("Nome", c.nome_completo)
+        pdf.campo("Grau de parentesco", c.parentesco)
+        pdf.campo("Telefone celular", c.telefone_celular)
+        pdf.campo("Telefone fixo / Endereço", c.telefone_fixo_endereco)
 
-    pdf.ln(4)
-    pdf.set_font("helvetica", "I", 8)
-    pdf.multi_cell(0, 4.5, "Dados de saúde tratados exclusivamente para proteção da vida e "
-                           "integridade física do titular (LGPD, art. 11, II, 'a' e 'e').")
+    pdf.ln(2); pdf.secao("5. ORIENTAÇÕES ADICIONAIS")
+    pdf.campo("Orientação específica em caso de emergência",
+              fe.orientacao_emergencia if fe else None)
+
+    cpf = d.cpf if d else "-"
+    _declaracao(
+        pdf, "6. DECLARAÇÃO ELETRÔNICA E AUTORIZAÇÃO",
+        f"Eu, {candidato.nome_completo}, inscrito(a) no CPF nº {cpf}, declaro que preenchi "
+        "pessoalmente estas informações, que são verdadeiras e de minha responsabilidade, e "
+        "autorizo a Green House a utilizá-las exclusivamente em situações de emergência. "
+        "Os dados de saúde aqui informados constituem dados pessoais sensíveis e são tratados "
+        "para a proteção da vida e da incolumidade física do titular e para o cumprimento de "
+        "obrigação legal, nos termos do art. 11, II, alíneas 'a' e 'e' da Lei nº 13.709/2018 "
+        "(LGPD).",
+        candidato,
+    )
     if assinatura:
         pdf.bloco_assinatura(assinatura, candidato.nome_completo)
     return bytes(pdf.output())
@@ -223,24 +306,49 @@ def gerar_termo_vt(db: Session, candidato: Candidato,
     d = db.get(DocumentosIdentificacao, candidato.id)
     vt = db.get(ValeTransporte, candidato.id)
 
-    pdf = _FichaPDF("Termo de Opção — Vale-Transporte")
+    e = db.get(Endereco, candidato.id)
+
+    pdf = _FichaPDF("DECLARAÇÃO DE OPÇÃO PELO VALE-TRANSPORTE (VT)")
     pdf.set_font("helvetica", "", 10)
     optante = bool(vt and vt.optante)
     cpf = d.cpf if d else "-"
     pdf.multi_cell(
         0, 6,
-        f"Eu, {candidato.nome_completo}, CPF {cpf}, nos termos da Lei nº 7.418/1985 (art. 4º) "
-        f"e do Decreto nº 95.247/1987, declaro que "
-        + ("OPTO por receber o Vale-Transporte, autorizando o desconto legal de até 6% do meu "
-           "salário básico." if optante
+        f"EU, {candidato.nome_completo}, inscrito(a) no CPF sob o nº {cpf}, DECLARO, para os "
+        f"devidos fins, quanto ao Vale-Transporte (VT), que "
+        + ("OPTO por receber o Vale-Transporte." if optante
            else "NÃO OPTO por receber o Vale-Transporte, estando ciente de que poderei "
-                "solicitá-lo posteriormente mediante novo termo."),
+                "solicitá-lo posteriormente mediante nova declaração."),
     )
-    pdf.ln(4)
+    pdf.ln(3)
     if optante and vt:
-        pdf.secao("Dados do benefício")
-        pdf.campo("Cartão DFTrans", vt.cartao_dftrans)
-        pdf.campo("Trajeto casa-trabalho", vt.trajeto_descricao)
+        pdf.secao("Dados do optante")
+        if e:
+            pdf.campo("Endereço residencial",
+                      f"{e.logradouro_numero_complemento or '-'}, {e.bairro or '-'}, "
+                      f"{e.cidade or '-'}/{e.uf or '-'} — CEP {e.cep or '-'}")
+        pdf.campo("Número do cartão DFTrans (de sua titularidade)", vt.cartao_dftrans)
+        pdf.campo("Percurso (ida e volta) — linhas, empresas e valores", vt.trajeto_descricao)
+        pdf.ln(2)
+
+    pdf.secao("DECLARO AINDA QUE:")
+    pdf.set_font("helvetica", "", 8)
+    pdf.multi_cell(0, 4.5,
+        "a) caso OPTE por receber o vale-transporte, AUTORIZO expressamente o desconto mensal, "
+        "em folha de pagamento, do valor equivalente a 6% do meu salário básico, nos termos do "
+        "art. 4º da Lei nº 7.418/1985 e do art. 9º do Decreto nº 95.247/1987;\n"
+        "b) resido no endereço acima informado, assumindo inteira responsabilidade pela "
+        "veracidade das informações declaradas;\n"
+        "c) estou ciente de que a declaração falsa ou o uso indevido do vale-transporte "
+        "constituem falta grave, sujeita às medidas disciplinares cabíveis (art. 7º, §3º, do "
+        "Decreto nº 95.247/1987);\n"
+        "d) esta declaração substitui as anteriormente formalizadas, quando se tratar de "
+        "atualização.")
+    pdf.ln(2)
+    quando = (candidato.declaracao_veracidade_em.strftime("%d/%m/%Y")
+              if candidato.declaracao_veracidade_em else "")
+    pdf.set_font("helvetica", "", 10)
+    pdf.multi_cell(0, 6, f"Brasília - DF, {quando}.")
 
     if assinatura:
         pdf.bloco_assinatura(assinatura, candidato.nome_completo)
