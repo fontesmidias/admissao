@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.config import get_settings
+from app.core.config import get_settings, ip_do_cliente
 from app.core.db import get_db
 from app.models.assinatura import Assinatura, DocumentoAssinavel
 from app.models.candidato import Candidato, StatusCandidato
@@ -179,7 +179,7 @@ def assinar_todos(
         pdf_sem_bloco = GERADORES[doc.value](db, candidato)
         assinatura.hash_sha256 = hashlib.sha256(pdf_sem_bloco).hexdigest()
         assinatura.assinado_em = agora
-        assinatura.ip = request.client.host if request.client else None
+        assinatura.ip = ip_do_cliente(request)
         assinatura.user_agent = request.headers.get("user-agent", "")[:400]
         assinatura.otp_hash = None
         assinatura.otp_expira_em = None
@@ -290,7 +290,7 @@ def assinar(
     pdf_sem_bloco = GERADORES[documento.value](db, candidato)
     assinatura.hash_sha256 = hashlib.sha256(pdf_sem_bloco).hexdigest()
     assinatura.assinado_em = datetime.now(timezone.utc)
-    assinatura.ip = request.client.host if request.client else None
+    assinatura.ip = ip_do_cliente(request)
     assinatura.user_agent = request.headers.get("user-agent", "")[:400]
     assinatura.otp_hash = None
     assinatura.otp_expira_em = None

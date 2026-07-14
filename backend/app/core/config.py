@@ -52,6 +52,18 @@ def base_url_publica(request) -> str:
     return f"{proto.split(',')[0].strip()}://{host}"
 
 
+def ip_do_cliente(request) -> str | None:
+    """IP real do cliente atrás do proxy (nginx/traefik enviam X-Forwarded-For /
+    X-Real-IP; request.client.host seria o IP do container do proxy)."""
+    encaminhado = request.headers.get("x-forwarded-for")
+    if encaminhado:
+        return encaminhado.split(",")[0].strip()
+    real = request.headers.get("x-real-ip")
+    if real:
+        return real.strip()
+    return request.client.host if request.client else None
+
+
 @lru_cache
 def get_settings() -> Settings:
     return Settings()

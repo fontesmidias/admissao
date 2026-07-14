@@ -37,20 +37,41 @@ export default function Checklist({ token, aoConcluir }) {
     inputRef.current.click()
   }
 
+  // Validação preventiva: recusa na hora, sem gastar a internet do candidato
+  // com um upload que o servidor rejeitaria.
+  const EXTENSOES_OK = ['jpg', 'jpeg', 'png', 'heic', 'webp', 'bmp', 'pdf', 'doc', 'docx', 'odt', 'rtf']
+  const MAX_MB = 50
+
+  const validarAntesDeEnviar = (arquivo) => {
+    if (arquivo.size === 0) return CODIGOS_ERRO_UPLOAD.arquivo_vazio
+    if (arquivo.size > MAX_MB * 1024 * 1024) return CODIGOS_ERRO_UPLOAD.arquivo_grande_demais
+    const ext = (arquivo.name.split('.').pop() || '').toLowerCase()
+    if (!EXTENSOES_OK.includes(ext)) return CODIGOS_ERRO_UPLOAD.formato_nao_suportado
+    return null
+  }
+
   const aoSelecionar = async (e) => {
     const arquivo = e.target.files[0]
     e.target.value = ''
     if (!arquivo) return
     const slotId = slotAtual.current
-    setEnviando(slotId)
     setErros((x) => ({ ...x, [slotId]: null }))
+    const erroLocal = validarAntesDeEnviar(arquivo)
+    if (erroLocal) {
+      setErros((x) => ({ ...x, [slotId]: erroLocal }))
+      return
+    }
+    setEnviando(slotId)
     try {
       await api.enviarArquivo(token, slotId, arquivo)
       await recarregar()
     } catch (err) {
       setErros((x) => ({
         ...x,
-        [slotId]: CODIGOS_ERRO_UPLOAD[err.detail] || 'Não foi possível enviar. Tente de novo.',
+        [slotId]: CODIGOS_ERRO_UPLOAD[err.detail]
+          || (err.status >= 500
+              ? 'Tivemos um problema no servidor ao processar o arquivo. Tente de novo em instantes — se continuar, avise o RH.'
+              : 'Não foi possível enviar. Verifique sua conexão e tente de novo.'),
       }))
     } finally { setEnviando(null) }
   }

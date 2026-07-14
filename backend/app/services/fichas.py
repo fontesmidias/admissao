@@ -5,7 +5,9 @@ Quando `assinatura` é passada, o rodapé ganha o bloco de assinatura eletrônic
 com a trilha de evidências (Lei 14.063/2020).
 """
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
+
+_TZ_BRASILIA = timezone(timedelta(hours=-3))
 
 from fpdf import FPDF
 from sqlalchemy.orm import Session
@@ -107,10 +109,12 @@ class _FichaPDF(FPDF):
 
     def bloco_assinatura(self, assinatura: Assinatura, nome: str):
         self.ln(8)
+        if self.get_y() > self.h - 55:
+            self.add_page()
         self.set_draw_color(*AZUL)
         self.set_line_width(0.3)
         y = self.get_y()
-        self.rect(10, y, 190, 30)
+        self.rect(10, y, 190, 34)
         self.set_xy(14, y + 3)
         self.set_font("helvetica", "B", 9)
         self.cell(0, 5, "ASSINATURA ELETRÔNICA (Lei nº 14.063/2020)",
@@ -122,7 +126,56 @@ class _FichaPDF(FPDF):
             182, 4.5,
             f"Assinado por {nome} em {quando}, mediante código de verificação enviado ao "
             f"titular. IP: {assinatura.ip or '-'}\n"
-            f"Integridade (SHA-256 do documento sem este bloco): {assinatura.hash_sha256}",
+            f"Integridade (SHA-256 do documento sem este bloco): {assinatura.hash_sha256}\n"
+            f"O manifesto completo de assinatura, com todas as evidências, está na última "
+            f"página deste documento.",
+        )
+
+    def pagina_manifesto(self, assinatura: Assinatura, candidato, cpf: str | None):
+        """Última página do PDF assinado: todas as evidências da assinatura
+        eletrônica simples (art. 4º, II, da Lei nº 14.063/2020)."""
+        utc = assinatura.assinado_em
+        brasilia = utc.astimezone(_TZ_BRASILIA)
+        self.add_page()
+        self.ln(2)
+        self.set_font("helvetica", "B", 13)
+        self.set_text_color(*AZUL)
+        self.cell(0, 8, "MANIFESTO DE ASSINATURA ELETRÔNICA", align="C",
+                  new_x="LMARGIN", new_y="NEXT")
+        self.set_text_color(30, 30, 30)
+        self.ln(3)
+
+        self.secao("Documento")
+        self.campo("Documento assinado", self.titulo)
+        self.campo("Integridade (SHA-256)", assinatura.hash_sha256)
+        self.campo("ID do registro de assinatura", str(assinatura.id))
+
+        self.secao("Assinante")
+        self.campo("Nome", candidato.nome_completo)
+        self.campo("CPF", cpf)
+        self.campo("E-mail verificado", candidato.email)
+
+        self.secao("Evidências do ato")
+        self.campo("Data e hora (Brasília)", brasilia.strftime("%d/%m/%Y %H:%M:%S (UTC-3)"))
+        self.campo("Data e hora (UTC)", utc.strftime("%d/%m/%Y %H:%M:%S"))
+        self.campo("Endereço IP", assinatura.ip)
+        self.campo("Dispositivo (user-agent)", assinatura.user_agent)
+        self.campo("Método", "Código de verificação numérico de uso único, enviado ao "
+                             "e-mail do titular e validado nesta plataforma antes da "
+                             "aposição da assinatura.")
+        self.campo("Modalidade", "Assinatura eletrônica simples — art. 4º, I, da "
+                                 "Lei nº 14.063/2020.")
+
+        self.ln(4)
+        self.set_font("helvetica", "I", 8)
+        self.multi_cell(
+            190, 4.5,
+            "O código SHA-256 acima é a impressão digital do conteúdo deste documento no "
+            "momento da assinatura (calculado sobre o documento sem o bloco e sem este "
+            "manifesto): qualquer alteração posterior ao conteúdo produz um código "
+            "diferente, o que permite verificar a integridade da via. O registro completo "
+            "do ato (solicitação do código, validação e assinatura) consta da trilha de "
+            "auditoria do Portal de Admissão Green House sob o ID indicado acima.",
         )
 
 
@@ -250,6 +303,7 @@ def gerar_ficha_cadastro(db: Session, candidato: Candidato,
 
     if assinatura:
         pdf.bloco_assinatura(assinatura, candidato.nome_completo)
+        pdf.pagina_manifesto(assinatura, candidato, cpf)
     return bytes(pdf.output())
 
 
@@ -314,6 +368,7 @@ def gerar_ficha_emergencia(db: Session, candidato: Candidato,
     )
     if assinatura:
         pdf.bloco_assinatura(assinatura, candidato.nome_completo)
+        pdf.pagina_manifesto(assinatura, candidato, cpf)
     return bytes(pdf.output())
 
 
@@ -368,6 +423,7 @@ def gerar_termo_vt(db: Session, candidato: Candidato,
 
     if assinatura:
         pdf.bloco_assinatura(assinatura, candidato.nome_completo)
+        pdf.pagina_manifesto(assinatura, candidato, cpf)
     return bytes(pdf.output())
 
 

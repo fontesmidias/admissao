@@ -14,7 +14,7 @@ from app.api.ficha import router as ficha_router
 from app.api.revisao import router as revisao_router
 from app.api.health import router as health_router
 from app.core.bootstrap import criar_admin_inicial
-from app.core.config import get_settings
+from app.core.config import get_settings, ip_do_cliente
 from app.core.db import Base, SessionLocal, engine
 
 settings = get_settings()
@@ -76,7 +76,7 @@ async def log_requisicoes(request: Request, call_next):
     telemetria.info(
         "method=%s path=%s status=%s ms=%s ip=%s",
         request.method, caminho, resposta.status_code, duracao_ms,
-        request.headers.get("x-real-ip", request.client.host if request.client else "-"),
+        ip_do_cliente(request) or "-",
     )
     return resposta
 

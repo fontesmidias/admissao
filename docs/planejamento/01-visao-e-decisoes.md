@@ -76,8 +76,13 @@ Ao comprar domínio: subir stack Traefik ou Certbot com o mesmo `.env` + `DOMAIN
   eletrônica simples, upload por slots com normalização p/ PDF, checklist "continue de onde
   parou", estado "envio concluído", fila de revisão do RH, dossiê único na ordem oficial,
   notificações SMTP, expurgo MinIO, tour guiado + tooltips.
-- **v1.1** — Validações inteligentes (OCR: data do comprovante de endereço, tipo de documento,
-  nitidez), dashboard do RH com métricas de tempo de admissão. Evolução do tour/tooltips.
+- **v1.1** ✅ — Validações inteligentes (OCR: data do comprovante de endereço, nitidez),
+  dashboard do RH com métricas, CPF com dígito verificador, esqueci-senha, equipe do RH,
+  Google/Gmail OAuth, manifesto de assinatura no PDF.
+- **v1.3** — OCR estendido aos demais documentos (pedido do Bruno, 2026-07-14): conferir se o
+  CPF/RG enviados batem com os números digitados na ficha, identificar documento errado no
+  slot (ex.: RG no lugar da CTPS), validar legibilidade dos dados essenciais. Testes de
+  interface (Playwright) no CI. Tooltips com imagens de exemplo.
 - **v2.0** — Migração dos formulários de seleção (situacional, comportamental) e do fluxo
   pós-Pandapé para dentro do sistema. Formulários de avaliação **fora da v1** (decisão do Bruno).
 
