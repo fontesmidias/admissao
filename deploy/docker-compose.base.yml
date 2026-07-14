@@ -24,6 +24,18 @@ services:
     networks: [internal]
     restart: unless-stopped
 
+  expurgo:
+    build: ../backend
+    entrypoint: ["/bin/sh", "-c"]
+    # Roda o expurgo a cada 24h (LGPD + espaço em disco no MinIO).
+    command: ["while true; do python -m app.workers.expurgo; sleep 86400; done"]
+    env_file: ../.env
+    depends_on:
+      - db
+      - minio
+    networks: [internal]
+    restart: unless-stopped
+
   frontend:
     build: ../frontend
     depends_on:

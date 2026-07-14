@@ -33,6 +33,9 @@ class Candidato(Base):
     celular_whatsapp: Mapped[str] = mapped_column(String(20))
     aceite_lgpd_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     declaracao_veracidade_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    dossie_pdf_key: Mapped[str | None] = mapped_column(String(300))
+    dossie_gerado_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    arquivos_expurgados_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     acessos: Mapped[list["AcessoMagico"]] = relationship(back_populates="candidato")

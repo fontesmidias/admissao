@@ -156,4 +156,46 @@ r = c.post(f"/api/c/{token}/documentos/{slot_rg['id']}/arquivo",
            files={"arquivo": ("rg2.jpg", b.getvalue(), "image/jpeg")})
 assert r.status_code == 409
 
-print("SMOKE TEST COMPLETO: 12/12 etapas ok")
+# 13) RH revisa: rejeita o RG (candidato reabre), candidato reenvia, RH aprova tudo
+detalhe = c.get(f"/api/rh/candidatos/{convite['candidato']['id']}", headers=rh).json()
+slot_rg_rh = next(s for s in detalhe["slots"] if s["tipo"] == "rg")
+r = c.post(f"/api/rh/slots/{slot_rg_rh['id']}/rejeitar", headers=rh,
+           json={"motivo": "ilegivel"})
+assert r.status_code == 200 and r.json()["status"] == "rejeitado"
+estado = c.get(f"/api/c/{token}").json()
+assert estado["status"] == "docs_pendentes"  # checklist reabriu para correção
+
+b = io.BytesIO(); Image.new("RGB", (900, 1200), "white").save(b, "JPEG")
+r = c.post(f"/api/c/{token}/documentos/{slot_rg_rh['id']}/arquivo",
+           files={"arquivo": ("rg-novo.jpg", b.getvalue(), "image/jpeg")})
+assert r.status_code == 200 and r.json()["status"] == "enviado"
+assert c.post(f"/api/c/{token}/concluir-envio").status_code == 200
+
+# dossiê antes de aprovar tudo -> 422 com pendências
+r = c.post(f"/api/rh/candidatos/{convite['candidato']['id']}/dossie", headers=rh)
+assert r.status_code == 422 and r.json()["detail"]["pendencias"]
+
+detalhe = c.get(f"/api/rh/candidatos/{convite['candidato']['id']}", headers=rh).json()
+for s in detalhe["slots"]:
+    if s["status"] == "enviado":
+        assert c.post(f"/api/rh/slots/{s['id']}/aprovar", headers=rh).status_code == 200
+
+# 14) dossiê gerado na ordem oficial: 3 fichas assinadas + documentos aprovados
+r = c.post(f"/api/rh/candidatos/{convite['candidato']['id']}/dossie", headers=rh)
+assert r.status_code == 200 and r.json()["status"] == "aprovado", r.text
+r = c.get(f"/api/rh/candidatos/{convite['candidato']['id']}/dossie", headers=rh)
+assert r.status_code == 200 and r.content[:4] == b"%PDF"
+from pypdf import PdfReader as _PR
+paginas_dossie = len(_PR(io.BytesIO(r.content)).pages)
+assert paginas_dossie >= 3 + 13, paginas_dossie  # 3 fichas + 13 docs deste candidato
+
+# 15) expurgo: nada a expurgar dentro da retenção; forçando retenção 0 dias, expurga
+import app.workers.expurgo as mod_exp
+assert mod_exp.expurgar() == 0
+from app.core.config import get_settings as _gs
+_gs().retention_days = -1
+assert mod_exp.expurgar() == 1
+r = c.get(f"/api/rh/candidatos/{convite['candidato']['id']}/dossie", headers=rh)
+assert r.status_code == 200  # dossiê final é preservado (registro trabalhista)
+
+print("SMOKE TEST COMPLETO: 15/15 etapas ok")
